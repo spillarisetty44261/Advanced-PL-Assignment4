@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<!--
+  Employee Shift Scheduler - JavaScript / HTML
+  Advanced Programming Languages Assignment
+
+  GUI version of the scheduler. User adds employees through a form,
+  ranks their shift preferences, then clicks generate to see the schedule.
+
+  I stored employees as an array of objects since each one needs
+  to track their name, preferences, and how many days they've worked.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Employee Shift Scheduler</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      color: #1e2a38;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1e2a38;
+      color: #fff;
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    header h1 { font-size: 1.3rem; font-weight: 600; }
+    header span { font-size: 1.5rem; }
+
+    main {
+      max-width: 980px;
+      margin: 2rem auto;
+      padding: 0 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #3b82f6;
+      margin-bottom: 1rem;
+    }
+
+    /* form layout */
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    .field { display: flex; flex-direction: column; gap: 0.3rem; }
+
+    label { font-size: 0.78rem; font-weight: 600; color: #64748b; }
+
+    input[type="text"] {
+      padding: 0.5rem 0.75rem;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.92rem;
+      width: 210px;
+      outline: none;
+    }
+
+    input[type="text"]:focus { border-color: #3b82f6; }
+
+    .pref-group { display: flex; flex-direction: column; gap: 0.3rem; }
+
+    .pref-row { display: flex; gap: 0.5rem; align-items: center; }
+
+    .pref-row select {
+      padding: 0.45rem 0.6rem;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      outline: none;
+    }
+
+    .pref-row select:focus { border-color: #3b82f6; }
+
+    .rank-label { font-size: 0.72rem; color: #94a3b8; min-width: 2.2rem; }
+
+    /* buttons */
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.55rem 1.1rem;
+    }
+
+    .btn-add { background: #3b82f6; color: #fff; }
+    .btn-add:hover { background: #2563eb; }
+
+    .btn-gen { background: #10b981; color: #fff; padding: 0.65rem 1.4rem; }
+    .btn-gen:hover { background: #059669; }
+    .btn-gen:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    .btn-remove { background: #fee2e2; color: #ef4444; padding: 0.35rem 0.6rem; font-size: 0.8rem; }
+    .btn-remove:hover { background: #fecaca; }
+
+    .btn-clear { background: #f1f5f9; color: #475569; }
+    .btn-clear:hover { background: #e2e8f0; }
+
+    /* employee list */
+    #employee-list { display: flex; flex-direction: column; gap: 0.5rem; }
+
+    .emp-chip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 0.5rem 0.8rem;
+      font-size: 0.88rem;
+    }
+
+    .emp-name { font-weight: 600; }
+    .emp-prefs { color: #64748b; font-size: 0.8rem; }
+    .empty-msg { color: #94a3b8; font-size: 0.88rem; font-style: italic; }
+
+    /* warning/error bar */
+    #status-bar {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 6px;
+      padding: 0.6rem 1rem;
+      font-size: 0.85rem;
+      color: #92400e;
+      display: none;
+      margin-bottom: 0.75rem;
+    }
+
+    /* schedule output */
+    #schedule-section { display: none; }
+
+    .table-wrap { overflow-x: auto; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+
+    th {
+      background: #1e2a38;
+      color: #fff;
+      padding: 0.6rem 0.8rem;
+      text-align: left;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    th.shift-col { background: #334155; }
+
+    td {
+      padding: 0.55rem 0.8rem;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f8fafc; }
+
+    /* colored name tags inside the table */
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin: 0.1rem 0.1rem;
+    }
+
+    .badge-morning   { background: #fef9c3; color: #854d0e; }
+    .badge-afternoon { background: #dcfce7; color: #166534; }
+    .badge-evening   { background: #ede9fe; color: #5b21b6; }
+    .badge-warn      { background: #fee2e2; color: #991b1b; }
+
+    /* summary cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+    }
+
+    .summary-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 0.75rem;
+    }
+
+    .s-name { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.35rem; }
+
+    .progress-bar { background: #e2e8f0; border-radius: 99px; height: 8px; overflow: hidden; }
+    .progress-fill { background: #3b82f6; height: 100%; border-radius: 99px; }
+
+    .s-count { font-size: 0.75rem; color: #64748b; margin-top: 0.3rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🗓</span>
+  <h1>Employee Shift Scheduler</h1>
+</header>
+
+<main>
+
+  <!-- Add employees here -->
+  <div class="card">
+    <h2>Step 1 — Add Employees</h2>
+
+    <div class="input-row">
+      <div class="field">
+        <label for="emp-name">Employee Name</label>
+        <input type="text" id="emp-name" placeholder="e.g. Alice Johnson" maxlength="40" />
+      </div>
+
+      <!-- bonus feature: ranked preferences -->
+      <div class="pref-group">
+        <label>Shift Preferences (1st = top choice)</label>
+        <div class="pref-row">
+          <span class="rank-label">1st</span>
+          <select id="pref1">
+            <option value="Morning">Morning</option>
+            <option value="Afternoon">Afternoon</option>
+            <option value="Evening">Evening</option>
+          </select>
+          <span class="rank-label">2nd</span>
+          <select id="pref2">
+            <option value="Morning">Morning</option>
+            <option value="Afternoon" selected>Afternoon</option>
+            <option value="Evening">Evening</option>
+          </select>
+          <span class="rank-label">3rd</span>
+          <select id="pref3">
+            <option value="Morning">Morning</option>
+            <option value="Afternoon">Afternoon</option>
+            <option value="Evening" selected>Evening</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn-add" onclick="addEmployee()">+ Add</button>
+    </div>
+
+    <div id="status-bar"></div>
+
+    <div id="employee-list">
+      <p class="empty-msg">No employees yet. Add some above.</p>
+    </div>
+  </div>
+
+  <!-- Generate button -->
+  <div class="card" style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px;">
+      <h2 style="margin-bottom:0.3rem;">Step 2 — Generate Schedule</h2>
+      <p style="font-size:0.85rem; color:#64748b;">
+        Needs at least 2 employees. Preferences are followed where possible.
+        Max 5 days per person, min 2 per shift.
+      </p>
+    </div>
+    <div style="display:flex; gap:0.5rem;">
+      <button class="btn-gen" id="gen-btn" onclick="generateSchedule()" disabled>Generate</button>
+      <button class="btn-clear" onclick="clearAll()">Clear All</button>
+    </div>
+  </div>
+
+  <!-- Schedule table, hidden until generated -->
+  <div class="card" id="schedule-section">
+    <h2>Weekly Schedule</h2>
+    <div class="table-wrap">
+      <table id="schedule-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Per-employee summary, also hidden until generated -->
+  <div class="card" id="summary-section" style="display:none;">
+    <h2>Employee Summary</h2>
+    <div class="summary-grid" id="summary-grid"></div>
+  </div>
+
+</main>
+
+<script>
+  const DAYS   = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  const SHIFTS = ["Morning","Afternoon","Evening"];
+  const MAX_DAYS = 5;
+  const MIN_PER_SHIFT = 2;
+
+  let employees = [];
+
+
+  // show/hide the warning bar at the top of the employee list
+  function showStatus(msg, type) {
+    const bar = document.getElementById("status-bar");
+    bar.textContent = msg;
+    bar.style.display = "block";
+    if (type === "error") {
+      bar.style.background = "#fee2e2";
+      bar.style.borderColor = "#fca5a5";
+      bar.style.color = "#991b1b";
+    } else {
+      bar.style.background = "#fef3c7";
+      bar.style.borderColor = "#fcd34d";
+      bar.style.color = "#92400e";
+    }
+  }
+
+  function hideStatus() {
+    document.getElementById("status-bar").style.display = "none";
+  }
+
+  // shuffle an array, returns a new copy
+  function shuffle(arr) {
+    const copy = [...arr];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  }
+
+  // read the three dropdowns and build a preference list
+  // skips duplicates so if someone picks morning twice it only appears once
+  function getPreferences() {
+    const raw = [
+      document.getElementById("pref1").value,
+      document.getElementById("pref2").value,
+      document.getElementById("pref3").value
+    ];
+
+    const prefs = [];
+    for (const v of raw) {
+      if (!prefs.includes(v)) prefs.push(v);
+    }
+
+    // add any shift they didn't rank at the end
+    for (const s of SHIFTS) {
+      if (!prefs.includes(s)) prefs.push(s);
+    }
+
+    return prefs;
+  }
+
+
+  function addEmployee() {
+    hideStatus();
+
+    const nameInput = document.getElementById("emp-name");
+    const name = nameInput.value.trim();
+
+    if (!name) {
+      showStatus("Please enter a name.", "error");
+      return;
+    }
+
+    // check for duplicates
+    if (employees.some(e => e.name.toLowerCase() === name.toLowerCase())) {
+      showStatus(`"${name}" is already on the list.`, "error");
+      return;
+    }
+
+    employees.push({
+      name: name,
+      preferences: getPreferences(),
+      daysWorked: 0,
+      assignedDays: new Set()
+    });
+
+    nameInput.value = "";
+    renderEmployeeList();
+
+    document.getElementById("gen-btn").disabled = employees.length < 2;
+  }
+
+  function removeEmployee(i) {
+    employees.splice(i, 1);
+    renderEmployeeList();
+    document.getElementById("gen-btn").disabled = employees.length < 2;
+  }
+
+  function renderEmployeeList() {
+    const container = document.getElementById("employee-list");
+
+    if (employees.length === 0) {
+      container.innerHTML = '<p class="empty-msg">No employees yet. Add some above.</p>';
+      return;
+    }
+
+    container.innerHTML = employees.map((emp, i) => `
+      <div class="emp-chip">
+        <div>
+          <span class="emp-name">${emp.name}</span>
+          <span class="emp-prefs"> &mdash; Prefers: ${emp.preferences.join(" > ")}</span>
+        </div>
+        <button class="btn-remove" onclick="removeEmployee(${i})">Remove</button>
+      </div>
+    `).join("");
+  }
+
+
+  function buildSchedule() {
+    // set up empty schedule grid
+    const schedule = {};
+    for (const day of DAYS) {
+      schedule[day] = {};
+      for (const shift of SHIFTS) {
+        schedule[day][shift] = [];
+      }
+    }
+
+    // reset everyone's counters
+    for (const emp of employees) {
+      emp.daysWorked = 0;
+      emp.assignedDays = new Set();
+    }
+
+    // shuffle day order so saturday/sunday don't always end up last
+    // and run out of available staff
+    const dayOrder = shuffle(DAYS);
+
+    // limit placements per day so we don't burn through everyone's
+    // 5-day allowance before reaching every day of the week
+    const avgPerDay = Math.floor((employees.length * MAX_DAYS) / DAYS.length);
+    const maxPerDay = Math.max(MIN_PER_SHIFT * SHIFTS.length, avgPerDay - 1);
+
+    for (const day of dayOrder) {
+      const order = shuffle(employees); // randomize so same people don't always go first
+      let placedToday = 0;
+
+      for (const emp of order) {
+        if (placedToday >= maxPerDay) break; // enough people for today
+        if (emp.daysWorked >= MAX_DAYS) continue;
+        if (emp.assignedDays.has(day)) continue;
+
+        let placed = false;
+
+        // walk down preference list and take the first available slot
+        for (const pref of emp.preferences) {
+          if (tryAssign(emp, day, pref, schedule)) {
+            placed = true;
+            break;
+          }
+        }
+
+        // if they couldn't get any preference, try whatever's left
+        if (!placed) {
+          for (const shift of SHIFTS) {
+            if (!emp.preferences.includes(shift)) {
+              if (tryAssign(emp, day, shift, schedule)) {
+                placed = true;
+                break;
+              }
+            }
+          }
+        }
+
+        if (placed) placedToday++;
+      }
+    }
+
+    // make sure every shift has at least 2 people, fill gaps randomly
+    const warnings = [];
+
+    for (const day of DAYS) {
+      for (const shift of SHIFTS) {
+        while (schedule[day][shift].length < MIN_PER_SHIFT) {
+          const available = employees.filter(
+            e => !e.assignedDays.has(day) && e.daysWorked < MAX_DAYS
+          );
+
+          if (available.length === 0) {
+            warnings.push(`Can't fill ${shift} on ${day} - not enough staff available.`);
+            break;
+          }
+
+          const pick = available[Math.floor(Math.random() * available.length)];
+          forceAssign(pick, day, shift, schedule);
+        }
+      }
+    }
+
+    return { schedule, warnings };
+  }
+
+  // try to assign an employee - fails if they're already working that day
+  function tryAssign(emp, day, shift, schedule) {
+    if (emp.assignedDays.has(day)) return false;
+
+    schedule[day][shift].push(emp.name);
+    emp.assignedDays.add(day);
+    emp.daysWorked++;
+    return true;
+  }
+
+  // used for the minimum fill pass, we already know they're free
+  function forceAssign(emp, day, shift, schedule) {
+    schedule[day][shift].push(emp.name);
+    emp.assignedDays.add(day);
+    emp.daysWorked++;
+  }
+
+
+  function generateSchedule() {
+    hideStatus();
+
+    const { schedule, warnings } = buildSchedule();
+
+    if (warnings.length > 0) {
+      showStatus("⚠ " + warnings.join("  |  "), "warn");
+    }
+
+    renderTable(schedule);
+    renderSummary();
+
+    document.getElementById("schedule-section").scrollIntoView({ behavior: "smooth" });
+  }
+
+  function getBadgeClass(shift) {
+    if (shift === "Morning")   return "badge-morning";
+    if (shift === "Afternoon") return "badge-afternoon";
+    return "badge-evening";
+  }
+
+  function renderTable(schedule) {
+    document.getElementById("schedule-section").style.display = "block";
+
+    const thead = document.querySelector("#schedule-table thead");
+    const tbody = document.querySelector("#schedule-table tbody");
+
+    thead.innerHTML = `
+      <tr>
+        <th class="shift-col">Shift</th>
+        ${DAYS.map(d => `<th>${d}</th>`).join("")}
+      </tr>
+    `;
+
+    // one row per shift, columns are days
+    tbody.innerHTML = SHIFTS.map(shift => `
+      <tr>
+        <td><strong>${shift}</strong></td>
+        ${DAYS.map(day => {
+          const names = schedule[day][shift];
+          if (names.length === 0) {
+            return `<td><span class="badge badge-warn">Unfilled</span></td>`;
+          }
+          return `<td>${names.map(n =>
+            `<span class="badge ${getBadgeClass(shift)}">${n}</span>`
+          ).join("")}</td>`;
+        }).join("")}
+      </tr>
+    `).join("");
+  }
+
+  function renderSummary() {
+    document.getElementById("summary-section").style.display = "block";
+
+    const grid = document.getElementById("summary-grid");
+
+    grid.innerHTML = employees.map(emp => {
+      const pct = Math.round((emp.daysWorked / MAX_DAYS) * 100);
+      return `
+        <div class="summary-card">
+          <div class="s-name">${emp.name}</div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${pct}%"></div>
+          </div>
+          <div class="s-count">${emp.daysWorked} / ${MAX_DAYS} days</div>
+          <div class="s-count">Top picks: ${emp.preferences.slice(0,2).join(" > ")}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+
+  function clearAll() {
+    employees = [];
+    renderEmployeeList();
+    document.getElementById("gen-btn").disabled = true;
+    document.getElementById("schedule-section").style.display = "none";
+    document.getElementById("summary-section").style.display = "none";
+    hideStatus();
+  }
+
+  // hitting enter in the name box should work the same as clicking add
+  document.getElementById("emp-name").addEventListener("keydown", function(e) {
+    if (e.key === "Enter") addEmployee();
+  });
+</script>
+</body>
+</html>
